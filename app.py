@@ -91,16 +91,26 @@ if not st.session_state["website_url"]:
                 })
             st.rerun()
 else:
-    user_input = st.text_input("Reply...", label_visibility="collapsed")
+    with st.form("chat_form", clear_on_submit=True):
+        user_input = st.text_input("Reply...", label_visibility="collapsed")
+        send = st.form_submit_button("Send")
 
-    if user_input:
-        st.session_state["messages"].append({"role": "user", "content": user_input})
+    if send and user_input.strip():
+        st.session_state["messages"].append({
+            "role": "user",
+            "content": user_input
+        })
 
         with st.spinner("Thinking..."):
             answer = ask_ai(user_input, st.session_state["context"])
 
-        st.session_state["messages"].append({"role": "bot", "content": answer})
+        st.session_state["messages"].append({
+            "role": "bot",
+            "content": answer
+        })
+
         st.rerun()
+
 
 st.markdown('</div>', unsafe_allow_html=True)
 st.markdown('</div>', unsafe_allow_html=True)
