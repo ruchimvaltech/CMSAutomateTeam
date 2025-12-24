@@ -2,7 +2,7 @@ import asyncio
 import sys
 
 if sys.platform.startswith("win"):
-    asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
+    asyncio.set_event_loop_policy(asyncio.WindowsProactorEventLoopPolicy())
     
 import streamlit as st
 from crawler import crawl_website
@@ -83,7 +83,7 @@ if not st.session_state["website_url"]:
             st.warning("Please enter a valid website URL.")
         else:
             with st.spinner("Crawling website..."):
-                st.session_state["context"] = crawl_website(url)
+                st.session_state["context"] = asyncio.run(crawl_website(url))
                 st.session_state["website_url"] = url
                 st.session_state["messages"].append({
                     "role": "bot",

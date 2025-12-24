@@ -1,20 +1,22 @@
-from playwright.sync_api import sync_playwright
+from playwright.async_api import async_playwright
 from bs4 import BeautifulSoup
 
 
-def crawl_website(url: str, max_pages: int = 5) -> str:
+async def crawl_website(url: str, max_pages: int = 5) -> str:
     """
     Crawls a website and returns extracted text content.
+    Safe for Streamlit + Windows.
     """
     collected_text = []
     visited = set()
 
-    with sync_playwright() as p:
-        browser = p.chromium.launch(headless=True)
-        page = browser.new_page()
-        page.goto(url, timeout=60000)
+    async with async_playwright() as p:
+        browser = await p.chromium.launch(headless=True)
+        page = await browser.new_page()
 
-        links = page.eval_on_selector_all(
+        await page.goto(url, timeout=60000)
+
+        links = await page.eval_on_selector_all(
             "a[href]",
             "els => els.map(e => e.href)"
         )
@@ -24,12 +26,13 @@ def crawl_website(url: str, max_pages: int = 5) -> str:
                 continue
 
             visited.add(link)
-            page.goto(link)
+            await page.goto(link, timeout=60000)
 
-            soup = BeautifulSoup(page.content(), "html.parser")
+            soup = BeautifulSoup(await page.content(), "html.parser")
             text = soup.get_text(" ", strip=True)
+
             collected_text.append(text[:4000])
 
-        browser.close()
+        await browser.close()
 
     return "\n".join(collected_text)[:12000]
