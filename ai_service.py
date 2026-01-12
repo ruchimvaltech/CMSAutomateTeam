@@ -56,6 +56,7 @@ INSTRUCTIONS:
     )
 
     return response.choices[0].message.content
+
 # ---------------- RFP MODE  ----------------
 def generate_rfp_analysis(website_context: str) -> dict:
     """
@@ -153,9 +154,7 @@ ANALYSIS INSTRUCTIONS (VERY IMPORTANT)
    - Write content suitable for direct Excel export
    - DO NOT include explanations outside the JSON
 
-------------------------------------------------------------
-WEBSITE CONTENT (SOURCE OF TRUTH)
-------------------------------------------------------------
+WEBSITE CONTENT:
 {website_context}
 """
 
@@ -165,4 +164,92 @@ WEBSITE CONTENT (SOURCE OF TRUTH)
         temperature=0.2
     )
 
-    return json.loads(response.choices[0].message.content)
+    raw = response.choices[0].message.content.strip()
+
+    # Debug 
+    print("RAW RFP RESPONSE:\n", raw)
+
+    # Empty guard
+    if not raw:
+        raise ValueError("Empty AI response for RFP analysis")
+
+    # Try direct JSON parse
+    try:
+        return json.loads(raw)
+    except json.JSONDecodeError:
+        pass
+
+    # Extract JSON block if wrapped or polluted
+    match = re.search(r"\{[\s\S]*\}", raw)
+    if match:
+        try:
+            return json.loads(match.group())
+        except json.JSONDecodeError:
+            pass
+
+    #  Hard fail (clear error)
+    raise ValueError(
+        "AI response could not be parsed as JSON. "
+        "Check prompt or model output."
+    )
+
+
+# ---------------- suggested questions ----------------
+
+import re
+
+
+def generate_suggested_questions(website_context: str) -> list[str]:
+    """
+    Generates smart, context-aware suggested questions for the chatbot UI.
+    Always returns a safe list.
+    """
+
+    prompt = f"""
+You are an expert CMS analyst.
+
+Based on the website content below, generate 6 to 8
+useful, practical questions a user might ask to understand:
+- Page types
+- Components
+- Media usage
+- Third-party integrations
+- Complexity or effort
+
+Rules:
+- Questions must be specific to this website
+- Questions must be short and clear
+- Do NOT number them
+- Return ONLY a JSON array of strings (no explanation text)
+
+WEBSITE CONTENT:
+{website_context}
+"""
+
+    response = client.chat.completions.create(
+        model="gpt-4o-mini",
+        messages=[{"role": "user", "content": prompt}],
+        temperature=0.3
+    )
+
+    raw = response.choices[0].message.content.strip()
+
+    # Empty response
+    if not raw:
+        return []
+
+    # Extract JSON array if wrapped in text
+    try:
+        return json.loads(raw)
+    except json.JSONDecodeError:
+        pass
+
+    #  Regex extract [ ... ]
+    match = re.search(r"\[[\s\S]*\]", raw)
+    if match:
+        try:
+            return json.loads(match.group())
+        except json.JSONDecodeError:
+            pass
+
+    # Fallback 
