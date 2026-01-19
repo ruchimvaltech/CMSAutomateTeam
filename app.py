@@ -15,7 +15,7 @@ st.set_page_config(page_title="AI Website Chatbot", page_icon="🤖", layout="ce
 
 # ---------------- SESSION STATE ----------------
 for key, default in {
-    "website_url": None,
+    "sitemap_url": None,
     "context": "",
     "messages": [],
     "suggested_questions": []
@@ -68,7 +68,7 @@ st.markdown('<div class="chat-body">', unsafe_allow_html=True)
 
 if not st.session_state["messages"]:
     st.markdown(
-        '<div class="bot">Hello! 👋<br>Please enter a website URL to get started.</div>',
+        '<div class="bot">Hello! 👋<br>Please enter a website Sitemap URL to get started.</div>',
         unsafe_allow_html=True
     )
 
@@ -79,7 +79,7 @@ for msg in st.session_state["messages"]:
 st.markdown('</div>', unsafe_allow_html=True)
 
 # ---------------- Auto-suggested questions UI ----------------
-if st.session_state["website_url"] and st.session_state["suggested_questions"]:
+if st.session_state["sitemap_url"] and st.session_state["suggested_questions"]:
     st.markdown(
         "<div style='padding:10px 15px; font-size:13px; color:#666;'>Suggested questions</div>",
         unsafe_allow_html=True
@@ -107,28 +107,41 @@ if st.session_state["website_url"] and st.session_state["suggested_questions"]:
 # Input
 st.markdown('<div class="chat-input">', unsafe_allow_html=True)
 
-if not st.session_state["website_url"]:
-    url = st.text_input("Website URL", placeholder="https://example.com", label_visibility="collapsed")
+if not st.session_state["sitemap_url"]:
+    # Crawl controls
+    col_a, col_b = st.columns(2)
+    with col_a:
+        ui_max_pages = st.number_input("Max pages to crawl", min_value=50, max_value=5000, value=300, step=50)
+    with col_b:
+        ui_concurrency = st.number_input("Concurrent fetches", min_value=1, max_value=24, value=8, step=1)
 
-    if st.button("Load Website"):
-        if not url.startswith("http"):
-            st.warning("Please enter a valid website URL.")
+    sitemap = st.text_input("Sitemap URL", placeholder="https://example.com/sitemap.xml", label_visibility="collapsed")
+
+    if st.button("Load Sitemap"):
+        if not sitemap.startswith("http"):
+            st.warning("Please enter a valid sitemap URL.")
         else:
-            with st.spinner("Crawling website..."):
-               context = crawl_website(url)
+            with st.spinner("Crawling sitemap..."):
+                context, crawled = asyncio.run(crawl_website(sitemap, max_pages=int(ui_max_pages), concurrency=int(ui_concurrency)))
             st.session_state["context"] = context
-            st.session_state["website_url"] = url
+            st.session_state["crawled_urls"] = crawled
+            st.session_state["sitemap_url"] = sitemap
             if not st.session_state["suggested_questions"]:
                 st.session_state["suggested_questions"] = generate_suggested_questions(context)
-         
+
             st.session_state["messages"].append({
                 "role": "bot",
                 "content": (
-                             "Nice! 👍 Website indexed successfully.\n\n"
-                                f"**URL:** [{url}]({url})\n\n"
+                             "Nice! 👍 Sitemap indexed successfully.\n\n"
+                                f"**Sitemap:** [{sitemap}]({sitemap})\n\n"
                             "Ask me anything about it."
                             )
                         })
+            if crawled:
+                st.session_state["messages"].append({
+                    "role": "bot",
+                    "content": f"Indexed representative URLs (showing up to 20 of {len(crawled)}):\n\n" + "\n".join(crawled[:20])
+                })
             st.rerun()
 else:
     with st.form("chat_form", clear_on_submit=True):
@@ -157,14 +170,30 @@ st.markdown('</div>', unsafe_allow_html=True)
 
 
 # ---------------- RFP Analysis & Download Excel----------------
-if st.session_state["website_url"]:
+if st.session_state["sitemap_url"]:
     if st.button("📊 Generate RFP Analysis"):
-        with st.spinner("Generating RFP-ready analysis..."):
+        crawled_count = len(st.session_state.get("crawled_urls", []))
+        
+        # Show estimated time based on URL count
+        if crawled_count <= 100:
+            time_est = "~15-30 seconds"
+        elif crawled_count <= 500:
+            time_est = f"~{int(crawled_count/100) * 20} seconds - {int(crawled_count/100) * 40} seconds"
+        else:
+            time_est = f"~{int(crawled_count/80) * 20} seconds - {int(crawled_count/80) * 40} seconds"
+        
+        with st.spinner(f"Generating RFP analysis for {crawled_count} pages (est. {time_est})..."):
             from ai_service import generate_rfp_analysis
+            # Automatic batch sizing based on URL count for optimal performance
             st.session_state["rfp_data"] = generate_rfp_analysis(
-                st.session_state["context"]
+                st.session_state["context"],
+                st.session_state.get("crawled_urls", []),
+                batch_size=None  # Auto-adjust: 100 for <500, 80 for <1000, 50 for >1000
             )
-        st.success("RFP analysis ready!")
+        
+        final_count = len(st.session_state["rfp_data"].get("pages", []))
+        st.success(f"✅ RFP analysis complete! Analyzed {final_count} pages.")
+        st.rerun()
 
 def generate_excel(rfp_data: dict):
     output = BytesIO()
@@ -225,4 +254,4 @@ if st.session_state.get("rfp_data"):
     )
 
 
-  
+
