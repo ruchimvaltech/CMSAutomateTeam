@@ -3,4 +3,7 @@ python-dotenv
 python-multipart
 playwright
 beautifulsoup4
+lxml
 openai
+openpyxl
+pandas
