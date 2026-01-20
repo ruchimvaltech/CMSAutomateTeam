@@ -8,7 +8,8 @@ if sys.platform.startswith("win"):
     
 import streamlit as st
 from crawler import crawl_website
-from ai_service import ask_ai, generate_suggested_questions
+from ai_service import ask_ai
+from suggested_questions_service import get_suggested_questions
 
 # ---------------- PAGE CONFIG ----------------
 st.set_page_config(page_title="AI Website Chatbot", page_icon="🤖", layout="centered")
@@ -25,6 +26,15 @@ for key, default in {
 
 if "rfp_data" not in st.session_state:
     st.session_state["rfp_data"] = None
+
+if "suggested_questions" not in st.session_state:
+    st.session_state["suggested_questions"] = []
+
+if "messages" not in st.session_state:
+    st.session_state["messages"] = []
+
+if "context" not in st.session_state:
+    st.session_state["context"] = ""    
 
 # ---------------- CSS ----------------
 st.markdown("""
@@ -78,31 +88,7 @@ for msg in st.session_state["messages"]:
 
 st.markdown('</div>', unsafe_allow_html=True)
 
-# ---------------- Auto-suggested questions UI ----------------
-if st.session_state["sitemap_url"] and st.session_state["suggested_questions"]:
-    st.markdown(
-        "<div style='padding:10px 15px; font-size:13px; color:#666;'>Suggested questions</div>",
-        unsafe_allow_html=True
-    )
 
-    cols = st.columns(2)
-    for i, question in enumerate(st.session_state["suggested_questions"]):
-        if cols[i % 2].button(question, key=f"auto_suggest_{i}"):
-
-            st.session_state["messages"].append({
-                "role": "user",
-                "content": question
-            })
-
-            with st.spinner("Thinking..."):
-                answer = ask_ai(question, st.session_state["context"])
-
-            st.session_state["messages"].append({
-                "role": "bot",
-                "content": answer
-            })
-
-            st.rerun()
 
 # Input
 st.markdown('<div class="chat-input">', unsafe_allow_html=True)
@@ -127,7 +113,7 @@ if not st.session_state["sitemap_url"]:
             st.session_state["crawled_urls"] = crawled
             st.session_state["sitemap_url"] = sitemap
             if not st.session_state["suggested_questions"]:
-                st.session_state["suggested_questions"] = generate_suggested_questions(context)
+                st.session_state["suggested_questions"] = get_suggested_questions(context)
 
             st.session_state["messages"].append({
                 "role": "bot",
@@ -168,6 +154,31 @@ else:
 st.markdown('</div>', unsafe_allow_html=True)
 st.markdown('</div>', unsafe_allow_html=True)
 
+# ---------------- Auto-suggested questions UI ----------------
+if st.session_state["suggested_questions"]:
+    st.markdown("### Suggested RFP Questions")
+
+    for i, q in enumerate(st.session_state["suggested_questions"]):
+        if st.button(q["ui_label"], key=f"suggest_{i}"):
+
+            # Show question in chat
+            st.session_state["messages"].append({
+                "role": "user",
+                "content": q["ui_label"]
+            })
+
+            with st.spinner("Thinking..."):
+                answer = ask_ai(
+                    q["ai_prompt"],
+                    st.session_state["context"]
+                )
+
+            st.session_state["messages"].append({
+                "role": "bot",
+                "content": answer
+            })
+
+            st.rerun()
 
 # ---------------- RFP Analysis & Download Excel----------------
 if st.session_state["sitemap_url"]:

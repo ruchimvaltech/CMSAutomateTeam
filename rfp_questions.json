@@ -1,0 +1,29 @@
+{
+  "static_questions": [
+    {
+      "id": "component_identification",
+      "ui_label": "What are the key UI components used across the website?",
+      "ai_prompt": "Analyze the website to identify and classify all visual and functional UI components such as headers, footers, hero banners, cards, grids, forms, navigation elements, CTAs, accordions, tabs, and modals. Use visual similarity and structural patterns to infer reusable components. Present a consolidated list of unique components suitable for CMS implementation."
+    },
+    {
+      "id": "component_families",
+      "ui_label": "Which components can be grouped into reusable component families?",
+      "ai_prompt": "Group similar UI patterns into reusable component families based on layout structure, content behavior, and visual consistency. For example, different card layouts, banners, or content blocks should be grouped where applicable. Explain the rationale behind each component family from a CMS and design system perspective."
+    },
+    {
+      "id": "component_inventory",
+      "ui_label": "What is the complete list of unique components?",
+      "ai_prompt": "Generate a comprehensive inventory of all unique components identified across the website. Include layout components, content components, media components, and interactive components. Indicate where each component is reused and assess its complexity for CMS-driven development."
+    },
+    {
+      "id": "page_layouts_dom",
+      "ui_label": "What page layouts and structures does the site use?",
+      "ai_prompt": "Extract and analyze page layouts, structural sections, and inferred DOM hierarchies across the website. Identify common layout patterns such as single-column, multi-column, grid-based, landing page layouts, and content-detail layouts. Explain how these layouts can be modularized in a CMS architecture."
+    },
+    {
+      "id": "page_component_mapping",
+      "ui_label": "How are components mapped to different page types?",
+      "ai_prompt": "Create a page-to-component mapping by analyzing which components appear on which page types. Identify shared components versus page-specific components. Present this mapping in a way that supports RFP estimation, CMS modeling, and migration planning."
+    }
+  ]
+}
