@@ -3,6 +3,7 @@ from bs4 import BeautifulSoup
 from urllib.parse import urlparse, urljoin
 import re
 import logging
+import aiohttp
 
 # Basic logger for visibility in console/Streamlit logs
 logger = logging.getLogger("cmsautomatex.crawler")
@@ -104,6 +105,27 @@ def _normalize_pattern(url: str, base_netloc: str) -> str:
     logger.debug("URL: %s -> Pattern: %s", url, pattern)
     
     return pattern
+
+
+def _looks_like_spa(html: str, text_len: int) -> bool:
+    """
+    Heuristics to detect client-rendered pages that likely need JS execution:
+    - Very low text content
+    - Presence of common SPA markers
+    - Script-heavy markup with minimal visible text
+    """
+    if text_len < 300:
+        markers = [
+            'id="root"', 'id="app"', 'data-reactroot', '__NEXT_DATA__',
+            'window.__INITIAL', 'ng-app', 'id="__nuxt"', 'data-v-app'
+        ]
+        if any(m in html for m in markers):
+            return True
+        # count scripts
+        script_count = html.count('<script')
+        if script_count >= 8:
+            return True
+    return False
 
 
 async def _discover_sitemap_urls(page, base_url: str) -> list[str]:
@@ -225,7 +247,7 @@ async def _representative_urls_from_given_sitemap(page, sitemap_url: str, max_ty
     return list(patterns_to_url.values())
 
 
-async def crawl_website(url: str, max_pages: int = 300, concurrency: int = 8) -> tuple[str, list[str]]:
+async def crawl_website(url: str, max_pages: int = 300, concurrency: int = 8, render_js: bool = False) -> tuple[str, list[str]]:
     """
     Crawls a website and returns extracted text content.
     Groups page types via sitemap.xml and crawls one representative URL per type.
@@ -274,45 +296,85 @@ async def crawl_website(url: str, max_pages: int = 300, concurrency: int = 8) ->
 
         sem = asyncio.Semaphore(concurrency)  # configurable concurrency limit
 
+        # Optional aiohttp session if not rendering JS
+        aio_sess: aiohttp.ClientSession | None = None
+        if not render_js:
+            aio_sess = aiohttp.ClientSession(headers={
+                "User-Agent": "CMSAutomateXCrawler/1.0",
+                "Accept": "text/html,application/xhtml+xml;q=0.9,*/*;q=0.8"
+            })
+
         async def fetch(url_to_fetch: str) -> str | None:
             async with sem:
                 if url_to_fetch in visited:
                     return None
                 visited.add(url_to_fetch)
 
-                ctx = await browser.new_context()
-                pg = await ctx.new_page()
-
-                # Block images, fonts, and styles to reduce load time
-                async def _route(route):
-                    if route.request.resource_type in ("image", "font", "stylesheet"):
-                        await route.abort()
-                    else:
-                        await route.continue_()
-
-                try:
-                    await pg.route("**/*", _route)
-                except Exception:
-                    # Older Playwright versions may require different API; ignore routing failures
-                    pass
-
                 start = perf_counter()
                 try:
-                    await pg.goto(url_to_fetch, timeout=30000, wait_until="domcontentloaded")
-                    html = await pg.content()
-                    elapsed = perf_counter() - start
-                    logger.info("Fetched %s in %.2fs", url_to_fetch, elapsed)
-                    soup = BeautifulSoup(html, "html.parser")
-                    text = soup.get_text(" ", strip=True)
-                    await ctx.close()
-                    return text[:6000]
+                    if render_js:
+                        # Playwright-rendered fetch with heavy resource blocking
+                        ctx = await browser.new_context()
+                        pg = await ctx.new_page()
+
+                        async def _route(route):
+                            if route.request.resource_type in ("image", "font", "stylesheet"):
+                                await route.abort()
+                            else:
+                                await route.continue_()
+
+                        try:
+                            await pg.route("**/*", _route)
+                        except Exception:
+                            pass
+
+                        await pg.goto(url_to_fetch, timeout=30000, wait_until="domcontentloaded")
+                        html = await pg.content()
+                        elapsed = perf_counter() - start
+                        logger.info("Fetched (JS) %s in %.2fs", url_to_fetch, elapsed)
+                        soup = BeautifulSoup(html, "html.parser")
+                        text = soup.get_text(" ", strip=True)
+                        await ctx.close()
+                        return text[:6000]
+                    else:
+                        # Fast static fetch via aiohttp
+                        assert aio_sess is not None
+                        async with aio_sess.get(url_to_fetch, timeout=20) as resp:
+                            if resp.status != 200:
+                                logger.debug("HTTP %s for %s", resp.status, url_to_fetch)
+                                return None
+                            html = await resp.text(errors="ignore")
+                            elapsed = perf_counter() - start
+                            logger.info("Fetched (static) %s in %.2fs", url_to_fetch, elapsed)
+                            soup = BeautifulSoup(html, "html.parser")
+                            text = soup.get_text(" ", strip=True)
+                            # Auto-switch to JS rendering if SPA indicators detected or very little text
+                            if _looks_like_spa(html, len(text)):
+                                logger.info("Static fetch looked empty/SPA for %s; re-fetching with JS", url_to_fetch)
+                                ctx = await browser.new_context()
+                                pg = await ctx.new_page()
+
+                                async def _route(route):
+                                    if route.request.resource_type in ("image", "font", "stylesheet"):
+                                        await route.abort()
+                                    else:
+                                        await route.continue_()
+
+                                try:
+                                    await pg.route("**/*", _route)
+                                except Exception:
+                                    pass
+
+                                await pg.goto(url_to_fetch, timeout=30000, wait_until="domcontentloaded")
+                                html_js = await pg.content()
+                                soup_js = BeautifulSoup(html_js, "html.parser")
+                                text_js = soup_js.get_text(" ", strip=True)
+                                await ctx.close()
+                                return text_js[:6000]
+                            return text[:6000]
                 except Exception as e:
                     elapsed = perf_counter() - start
                     logger.warning("Failed %s after %.2fs: %s", url_to_fetch, elapsed, e)
-                    try:
-                        await ctx.close()
-                    except Exception:
-                        pass
                     return None
 
         tasks = [fetch(l) for l in links_to_crawl]
@@ -327,5 +389,12 @@ async def crawl_website(url: str, max_pages: int = 300, concurrency: int = 8) ->
                     pass
 
         await browser.close()
+
+    # Close aiohttp session if used
+    try:
+        if 'aio_sess' in locals() and aio_sess:
+            await aio_sess.close()
+    except Exception:
+        pass
 
     return "\n".join(collected_text)[:20000], crawled_urls

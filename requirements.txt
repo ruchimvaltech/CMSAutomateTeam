@@ -7,3 +7,4 @@ lxml
 openai
 openpyxl
 pandas
+aiohttp

@@ -115,6 +115,8 @@ if not st.session_state["sitemap_url"]:
     with col_b:
         ui_concurrency = st.number_input("Concurrent fetches", min_value=1, max_value=24, value=8, step=1)
 
+    render_js = st.checkbox("Render JS (Playwright)", help="Enable for SPA/JS-heavy sites. Slower but captures dynamic content.", value=False)
+
     sitemap = st.text_input("Sitemap URL", placeholder="https://example.com/sitemap.xml", label_visibility="collapsed")
 
     if st.button("Load Sitemap"):
@@ -122,7 +124,12 @@ if not st.session_state["sitemap_url"]:
             st.warning("Please enter a valid sitemap URL.")
         else:
             with st.spinner("Crawling sitemap..."):
-                context, crawled = asyncio.run(crawl_website(sitemap, max_pages=int(ui_max_pages), concurrency=int(ui_concurrency)))
+                context, crawled = asyncio.run(crawl_website(
+                    sitemap,
+                    max_pages=int(ui_max_pages),
+                    concurrency=int(ui_concurrency),
+                    render_js=bool(render_js)
+                ))
             st.session_state["context"] = context
             st.session_state["crawled_urls"] = crawled
             st.session_state["sitemap_url"] = sitemap
