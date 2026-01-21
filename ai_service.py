@@ -319,7 +319,8 @@ def generate_rfp_analysis(website_context: str, crawled_urls: list[str], batch_s
     merged = _merge_rfp_batches(batches)
     
     print(f"SUCCESS: Final analysis covers {len(merged.get('pages', []))} pages")
-    return merged
+    # Post-process to annotate reusable components and map components to page types
+    return _annotate_components_and_page_types(merged)
 
 
 def _generate_rfp_batch(website_context: str, urls: list[str], url_count: int, batch_num: int = 1, total_batches: int = 1) -> dict:
@@ -418,21 +419,21 @@ STEP 2: PAGE TYPE CLASSIFICATION
 - Common types: Homepage/Landing, Product/Service Detail, Category/Listing, Blog/News/Article, About/Team/Company, Contact/Form, FAQ/Support, Legal/Policy, Search Results, User Account/Dashboard, Unknown
 - Sum of 'page_types.count' MUST equal {url_count}
 
-STEP 3: COMPONENT IDENTIFICATION (EXHAUSTIVE)
-- Navigation: Header, Footer, Breadcrumbs, Sidebar, Mobile Menu, Search Bar
-- Layout: Hero/Banner, Card Grid, Multi-column, Sidebar Layout
-- Content: Rich Text, Headings, Quote/Testimonial, CTA, Feature/Icon Grid, Accordion, Tabs
-- Media: Image, Gallery, Carousel/Slider, Video, Audio, Document/PDF, Icon/SVG
-- Interactive: Forms, Newsletter Signup, Search Widget, Filter/Sort, Pagination, Dropdown, Modal
-- E-commerce: Product Card, Cart, Checkout, Price, Reviews/Ratings
-- Social/Integration: Share Buttons, Social Feed, Map Embed, Chat Widget, Cookie Banner
+STEP 3: COMPONENT IDENTIFICATION (UNBOUNDED, UX-LED)
+- Act as a senior UX designer: infer components from visual layout, information architecture, and content structure for EACH page.
+- Do NOT limit the component list to predefined categories; name components precisely and contextually (e.g., "Hero with CTA", "Sticky Header", "Mega Menu", "Breadcrumb", "Faceted Filters", "Tag Chips", "Card Grid", "Accordion", "Tabs", "Stepper", "Toast", "Modal", "Carousel", "Video Player", "Download List", "Table", "Data Visualization", "FAQ", "Contact Form", "Newsletter Form", "Map Embed", "Testimonials", "Related Articles", "Author Bio", "Comments", "Pagination", "Infinite Scroll", "Empty State", "Skeleton Loader", "Cookie Banner", "Chat Widget", "Search Bar", "Search Results", "Promo Ribbon", "Language Switcher"). These are examples, not limits.
+- Capture both atomic (buttons, badges, chips) and composite (sections, cards, grids) components; include key variants when relevant.
+- Derive a comprehensive per-page component list and ensure aggregation is reflected across page types.
+- If labels are ambiguous, infer based on layout patterns, headings, repeated structures, and textual cues.
 
-STEP 4: THIRD-PARTY INTEGRATION DETECTION
-- Analytics: Google Analytics/GA4, GTM, Facebook Pixel, Hotjar
-- Marketing: HubSpot, Marketo, Mailchimp
-- Media/CDN: YouTube/Vimeo, Cloudinary, Cloudflare
-- Social/Comm: Facebook/Instagram, Twitter/X, LinkedIn, Intercom
-- Infrastructure: Stripe/PayPal, Auth0, SendGrid, Algolia
+STEP 4: THIRD-PARTY INTEGRATION DETECTION (OPEN-ENDED)
+- Act as a website analyst and identify ALL third-party services integrated into the site.
+- Do NOT rely on any predefined list. Infer integrations from evidence such as:
+  - script/iframe src domains, link/script tags, meta tags, inline snippets
+  - form action endpoints, API/base URLs, request hosts referenced in the context
+  - embedded widgets/SDKs, OAuth flows, payment buttons, chat launchers, social embeds
+  - CDN/storage domains, tracking beacons, tag managers, A/B testing tools
+- For each integration, include: name (provider), category (free-form label), purpose, evidence_or_inference, detected_on_urls.
 
 STEP 5: QUALITY & STRICTNESS
 - Output ONLY valid JSON
@@ -577,6 +578,91 @@ WEBSITE CONTENT (REFERENCE SOURCE):
     if "recommendations" not in data:
         data["recommendations"] = []
 
+    return data
+
+
+def _annotate_components_and_page_types(data: dict) -> dict:
+    """
+    Adds reusable flags to components and maps components to page types.
+    - A component is marked reusable if it appears in more than one page type.
+    - Each page type gains summary fields: components_all, components_reusable, component_count.
+    """
+    pages = data.get("pages", []) or []
+    components = data.get("components", []) or []
+    page_types = data.get("page_types", []) or []
+
+    # Build usage maps
+    comp_to_page_types: dict[str, set] = {}
+    pt_to_components: dict[str, set] = {}
+
+    # Map URL to page type for fallback enrichment
+    url_to_pt: dict[str, str] = {}
+    for p in pages:
+        pt = (p.get("page_type") or "Unknown").strip() or "Unknown"
+        comps = p.get("components", []) or []
+        if pt not in pt_to_components:
+            pt_to_components[pt] = set()
+        for c in comps:
+            if not isinstance(c, str):
+                continue
+            cname = c.strip()
+            if not cname:
+                continue
+            pt_to_components[pt].add(cname)
+            comp_to_page_types.setdefault(cname, set()).add(pt)
+        url = p.get("url")
+        if isinstance(url, str) and url:
+            url_to_pt[url] = pt
+
+    # Mark reusable on components list
+    for comp in components:
+        name = (comp.get("name") or "").strip()
+        pts = comp_to_page_types.get(name, set())
+        comp["reusable"] = "Yes" if len(pts) > 1 else "No"
+
+    # Inject component mapping summaries into page_types entries
+    # Create index for quick lookup
+    name_to_pt_obj = { (pt.get("name") or "Unknown"): pt for pt in page_types }
+    for pt_name, comp_set in pt_to_components.items():
+        pt_obj = name_to_pt_obj.get(pt_name)
+        if not pt_obj:
+            # If AI didn't emit this page type, create a minimal entry
+            pt_obj = {"name": pt_name, "description": "", "example_urls": [], "complexity": "", "count": 0}
+            page_types.append(pt_obj)
+            name_to_pt_obj[pt_name] = pt_obj
+        comp_list = sorted(comp_set)
+        reusable_list = [c for c in comp_list if len(comp_to_page_types.get(c, set())) > 1]
+        pt_obj["components_all"] = ", ".join(comp_list)
+        pt_obj["components_reusable"] = ", ".join(sorted(reusable_list))
+        pt_obj["component_count"] = len(comp_list)
+
+    # Fallback enrichment: use components[].found_on_urls to add components to page types
+    for comp in components:
+        cname = (comp.get("name") or "").strip()
+        urls = comp.get("found_on_urls", []) or []
+        for u in urls:
+            pt = url_to_pt.get(u)
+            if not pt:
+                continue
+            pt_to_components.setdefault(pt, set()).add(cname)
+            comp_to_page_types.setdefault(cname, set()).add(pt)
+
+    # Recompute page type summaries after enrichment
+    for pt_name, comp_set in pt_to_components.items():
+        pt_obj = name_to_pt_obj.get(pt_name)
+        if not pt_obj:
+            pt_obj = {"name": pt_name, "description": "", "example_urls": [], "complexity": "", "count": 0}
+            page_types.append(pt_obj)
+            name_to_pt_obj[pt_name] = pt_obj
+        comp_list = sorted(comp_set)
+        reusable_list = [c for c in comp_list if len(comp_to_page_types.get(c, set())) > 1]
+        pt_obj["components_all"] = ", ".join(comp_list)
+        pt_obj["components_reusable"] = ", ".join(sorted(reusable_list))
+        pt_obj["component_count"] = len(comp_list)
+
+    # Ensure structures are set back
+    data["components"] = components
+    data["page_types"] = page_types
     return data
 
 

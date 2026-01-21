@@ -226,6 +226,44 @@ def generate_excel(rfp_data: dict):
         # ---------------- Page Types ----------------
         page_types = pd.DataFrame(rfp_data.get("page_types", []))
         if not page_types.empty:
+            # Derive per-page-type component list and add as 'component' and 'components_reusable' columns
+            try:
+                pt_to_components: dict[str, set] = {}
+                for p in rfp_data.get("pages", []) or []:
+                    pt = (p.get("page_type") or "").strip()
+                    comps = [c.strip() for c in (p.get("components", []) or []) if isinstance(c, str) and c.strip()]
+                    if not pt:
+                        continue
+                    if pt not in pt_to_components:
+                        pt_to_components[pt] = set()
+                    pt_to_components[pt].update(comps)
+
+                # Compute reuse across page types
+                comp_to_pts: dict[str, set] = {}
+                for pt_name, comps in pt_to_components.items():
+                    for c in comps:
+                        comp_to_pts.setdefault(c, set()).add(pt_name)
+                reusable_set = {c for c, pts in comp_to_pts.items() if len(pts) > 1}
+
+                def _components_for_pt(name: str) -> str:
+                    if not isinstance(name, str) or not name:
+                        return ""
+                    comps = sorted(pt_to_components.get(name, set()))
+                    return ", ".join(comps)
+
+                def _components_reusable_for_pt(name: str) -> str:
+                    if not isinstance(name, str) or not name:
+                        return ""
+                    comps = sorted(pt_to_components.get(name, set()) & reusable_set)
+                    return ", ".join(comps)
+
+                page_types = page_types.copy()
+                page_types["component"] = page_types.get("name").apply(_components_for_pt)
+                page_types["components_reusable"] = page_types.get("name").apply(_components_reusable_for_pt)
+            except Exception:
+                # If anything fails, still export the base page types
+                pass
+
             page_types.to_excel(writer, sheet_name="Page Types", index=False)
 
         # ---------------- Components ----------------
