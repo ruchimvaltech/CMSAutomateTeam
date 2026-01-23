@@ -1,0 +1,407 @@
+/* Tailwind via CDN import (play CDN). This is a lightweight approach for prototyping.
+   For production, prefer building Tailwind locally to purge unused styles. */
+@import url('https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css');
+
+body, body .stApp {
+  margin: 0;
+  padding: 0;
+  background-color: #f9fafb;
+}
+
+body .st-emotion-cache-13k62yr {
+    background-color: #ffffff;
+}
+.stMainBlockContainer.block-container {
+    margin-top: 20px;
+    max-width: 1100px;
+}
+header {
+    border-bottom: 1px solid #ccc;
+}
+.max-w-4\/5 { max-width: 80%; }
+
+/* Slightly larger scroll area visuals */
+::-webkit-scrollbar { height: 8px; width: 8px; }
+::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.15); border-radius: 8px; }
+
+/* Small responsive adjustments for narrow screens */
+@media (max-width: 480px) {
+  .max-w-md { margin: 1rem; }
+  .max-w-4\/5 { max-width: 90%; }
+}
+
+/* Styling for Excel download button to match theme (used by Streamlit's button classes) */
+.stDownloadButton > button {
+  background: linear-gradient(90deg,#7c3aed,#4f46e5);
+  color: white;
+  border-radius: 0.5rem;
+  padding: 0.5rem 0.75rem;
+  border: none;
+}
+
+/* ===============================
+   BASE / RESET
+================================ */
+html,
+body,
+[class*="css"] {
+    font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+}
+
+body {
+    background: linear-gradient(180deg, #f8fafc 0%, #eef2ff 100%);
+}
+
+/* ===============================
+   CARD CONTAINER
+================================ */
+.max-w-md {
+    max-width: 420px;
+}
+
+.shadow-lg {
+    box-shadow:
+        0 10px 25px -5px rgba(0, 0, 0, 0.08),
+        0 8px 10px -6px rgba(0, 0, 0, 0.04);
+}
+
+.rounded-xl {
+    border-radius: 16px;
+}
+
+/* ===============================
+   HEADER
+================================ */
+.bg-gradient-to-r {
+    background: linear-gradient(to right, #7c3aed, #4f46e5);
+}
+
+.bg-gradient-to-r span {
+    font-size: 12px;
+}
+
+/* ===============================
+   CHAT AREA
+================================ */
+.bg-gray-50 {
+    background-color: #f9fafb;
+}
+
+.h-24 {
+    height: 280px;
+}
+
+/* Scrollbar */
+.h-24::-webkit-scrollbar {
+    width: 6px;
+}
+
+.h-24::-webkit-scrollbar-thumb {
+    background: #c7d2fe;
+    border-radius: 8px;
+}
+
+.h-24::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+/* ===============================
+   CHAT BUBBLES
+================================ */
+.max-w-4\/5 {
+    max-width: 80%;
+}
+
+.bg-indigo-600 {
+    background-color: #4f46e5;
+}
+
+.bg-gray-200 {
+    background-color: #e5e7eb;
+}
+
+.text-white {
+    color: #ffffff;
+}
+
+.text-gray-800 {
+    color: #1f2937;
+}
+
+.rounded-lg {
+    border-radius: 12px;
+}
+
+.ml-auto {
+    margin-left: auto;
+}
+
+/* subtle animation */
+@keyframes fadeInUp {
+    from {
+        opacity: 0;
+        transform: translateY(6px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.bg-indigo-600,
+.bg-gray-200 {
+    animation: fadeInUp 0.2s ease-out;
+}
+
+/* ===============================
+   INPUT AREA
+================================ */
+.border-t {
+    border-top: 1px solid #e5e7eb;
+}
+
+/* ===============================
+   STREAMLIT OVERRIDES
+================================ */
+
+/* Buttons */
+.stButton>button {
+    background: linear-gradient(to right, #6366f1, #4f46e5);
+    color: white;
+    border-radius: 10px;
+    padding: 0.5rem 1rem;
+    font-weight: 500;
+    border: none;
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.stButton>button:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 8px 16px rgba(79, 70, 229, 0.3);
+}
+
+/* Text inputs */
+.stTextInput input,
+.stNumberInput input {
+    border-radius: 10px;
+    border: 0px !important;
+    padding: 0.55rem 0.75rem;
+}
+
+.stTextInput input:focus,
+.stNumberInput input:focus {
+    border-color: #6366f1;
+    box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.2);
+}
+
+/* Checkbox */
+.stCheckbox label {
+    font-size: 14px;
+}
+
+/* Spinner text */
+.stSpinner>div {
+    color: #4f46e5;
+    font-weight: 500;
+}
+
+/* Success / warning */
+.stAlert {
+    border-radius: 12px;
+}
+
+/* Download button */
+.stDownloadButton>button {
+    background: linear-gradient(to right, #10b981, #059669);
+}
+
+.stDownloadButton>button:hover {
+    box-shadow: 0 8px 16px rgba(16, 185, 129, 0.3);
+}
+
+/* Remove Streamlit default padding */
+.block-container {
+    padding-top: 2rem;
+    padding-bottom: 3rem;
+}
+
+/* ===============================
+   CARD / PANEL
+================================ */
+.stMainBlockContainer {
+    background: #ffffff;
+    border-radius: 18px;
+    box-shadow:
+        0 20px 40px -12px rgba(0, 0, 0, 0.08),
+        0 10px 20px -8px rgba(0, 0, 0, 0.04);
+    padding: 1.25rem;
+    margin-bottom: 1.5rem;
+}
+
+/* ===============================
+   CHAT HEADER
+================================ */
+.chat-header {
+    background: linear-gradient(90deg, #7c3aed, #4f46e5);
+    color: white;
+    padding: 1rem 1.25rem;
+    border-radius: 14px 14px 0 0;
+    font-weight: 600;
+}
+
+/* ===============================
+   CHAT AREA
+================================ */
+.chat-body {
+    background: #f9fafb;
+    padding: 1rem;
+    border-radius: 0 0 14px 14px;
+    max-height: 380px;
+    overflow-y: auto;
+}
+
+/* Scrollbar */
+.chat-body::-webkit-scrollbar {
+    width: 6px;
+}
+
+.chat-body::-webkit-scrollbar-thumb {
+    background: #c7d2fe;
+    border-radius: 10px;
+}
+
+/* ===============================
+   CHAT BUBBLES
+================================ */
+.chat-bubble {
+    padding: 0.75rem 1rem;
+    border-radius: 14px;
+    margin-bottom: 0.5rem;
+    max-width: 80%;
+    line-height: 1.45;
+    animation: fadeInUp 0.2s ease-out;
+}
+
+.chat-user {
+    background: linear-gradient(90deg, #6366f1, #4f46e5);
+    color: white;
+    margin-left: auto;
+}
+
+.chat-bot {
+    background: #e5e7eb;
+    color: #1f2937;
+}
+
+/* ===============================
+   INPUTS
+================================ */
+.stTextInput input,
+.stNumberInput input {
+    border-radius: 12px;
+    border: 1px solid #d1d5db;
+    padding: 0.6rem 0.75rem;
+    transition: all 0.15s ease;
+}
+
+.stTextInput input:focus,
+.stNumberInput input:focus {
+    border-color: #6366f1;
+    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.2);
+}
+
+/* ===============================
+   BUTTONS
+================================ */
+.stButton>button {
+    background: linear-gradient(90deg, #6366f1, #4f46e5);
+    color: white;
+    border-radius: 12px;
+    padding: 0.6rem 1.1rem;
+    font-weight: 500;
+    border: none;
+    transition: all 0.15s ease;
+}
+
+.stButton>button:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 10px 20px rgba(79, 70, 229, 0.35);
+}
+
+/* ===============================
+   CHECKBOX
+================================ */
+.stCheckbox label {
+    font-size: 14px;
+}
+
+/* ===============================
+   ALERTS
+================================ */
+.stAlert {
+    border-radius: 14px;
+}
+
+/* ===============================
+   DOWNLOAD BUTTON
+================================ */
+.stDownloadButton>button {
+    background: linear-gradient(90deg, #10b981, #059669);
+}
+
+.stDownloadButton>button:hover {
+    box-shadow: 0 10px 20px rgba(16, 185, 129, 0.35);
+}
+
+/* ===============================
+   ANIMATION
+================================ */
+@keyframes fadeInUp {
+    from {
+        opacity: 0;
+        transform: translateY(6px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.website-sitemap {
+    width: 100%;
+    max-width: 100%;
+    margin-top: 20px;
+}
+.st-emotion-cache-1c87b1z p,
+.st-emotion-cache-1c87b1z ol,
+.st-emotion-cache-1c87b1z ul,
+.st-emotion-cache-1c87b1z dl,
+.st-emotion-cache-1c87b1z li {
+    color: #000;
+}
+
+.stColumn .st-emotion-cache-zh2fnc {
+    width: 100%;
+    box-shadow: 0 20px 40px -12px rgba(0, 0, 0, 0.08), 0 10px 20px -8px rgba(0, 0, 0, 0.04);
+}
+
+.st-b7 {
+    background: #f9fafb;
+    color: #000;
+}
+.stTextInput input,
+.stNumberInput input {
+    color: #000;
+}
+
+.logo-container {
+    left: 20px;
+    position: fixed;
+    z-index: 999999;
+    top: -5px;
+}
+.logo-container h2 {
+    font-size: 28px;
+}
