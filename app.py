@@ -8,11 +8,25 @@ if sys.platform.startswith("win"):
     
 import streamlit as st
 from crawler import crawl_website
-from ai_service import ask_ai
+from ai_service import ask_ai, generate_suggested_questions
 from suggested_questions_service import get_suggested_questions
 
+import base64
+from pathlib import Path
+
+def img_to_base64(relative_path: str) -> str:
+    """
+    Convert local image to base64 string for Streamlit HTML embedding
+    """
+    img_path = Path(__file__).parent / relative_path
+    if not img_path.exists():
+        raise FileNotFoundError(f"Image not found: {img_path}")
+
+    return base64.b64encode(img_path.read_bytes()).decode("utf-8")
+#--FE changes end--#
+
 # ---------------- PAGE CONFIG ----------------
-st.set_page_config(page_title="AI Website Chatbot", page_icon="🤖", layout="centered")
+st.set_page_config(page_title="CMS AutomateX Team", page_icon="🤖", layout="centered")
 
 # ---------------- SESSION STATE ----------------
 for key, default in {
@@ -36,62 +50,82 @@ if "messages" not in st.session_state:
 if "context" not in st.session_state:
     st.session_state["context"] = ""    
 
-# ---------------- CSS ----------------
-st.markdown("""
-<style>
-.block-container { display:flex; justify-content:center; }
-.chat-card {
-    width:420px; background:white; border-radius:14px;
-    box-shadow:0 10px 30px rgba(0,0,0,0.15);
-    overflow:hidden; margin-top:40px;
-}
-.chat-header { background:#b97ad9; color:white; padding:14px; font-weight:bold; }
-.status { font-size:12px; opacity:0.9; }
-.chat-body {
-    height:86px; padding:15px; overflow-y:auto; background:#fafafa;
-}
-.bot {
-    background:#eaeaea; color:#333; padding:10px 14px;
-    border-radius:14px; margin-bottom:10px; max-width:80%;
-}
-.user {
-    background:#b97ad9; color:white; padding:10px 14px;
-    border-radius:14px; margin-bottom:10px; max-width:80%; margin-left:auto;
-}
-.chat-input { padding:10px; border-top:1px solid #eee; }
-</style>
-""", unsafe_allow_html=True)
+# ---------------- CSS (external file) ----------------
+
+from pathlib import Path
+# Load external CSS (Tailwind + custom overrides) from assets/theme.css
+
+css_path = Path(__file__).parent / "assets" / "theme.css"
+if css_path.exists():
+    with open(css_path, "r", encoding="utf-8") as f:
+        css_content = f.read()
+    st.markdown(f"<style>{css_content}</style>", unsafe_allow_html=True)
+else:
+    # Fallback: minimal styles if assets file is missing
+    st.markdown(
+        """
+        <style>
+        .fallback-container{display:flex;justify-content:center}
+        </style>
+        """,
+        unsafe_allow_html=True,
+    )
 
 # ---------------- UI ----------------
-st.markdown('<div class="chat-card">', unsafe_allow_html=True)
 
-# Header
-st.markdown("""
-<div class="chat-header">
-    🤖 LeadBot<br>
-    <span class="status">● Online now</span>
+# logo and title
+st.markdown(
+    """
+<div class="flex justify-center logo-container">
+  <h2 class="text-2xl font-bold tracking-wide text-gray-800">
+    CMS AutomateX Team
+  </h2>
 </div>
-""", unsafe_allow_html=True)
+""",
+    unsafe_allow_html=True,
+)
 
-# Body
-st.markdown('<div class="chat-body">', unsafe_allow_html=True)
+# ---------------- BANNER ----------------
+img_base64 = img_to_base64("assets/banner.png")
+
+st.markdown(
+    f"""
+    <div class="mx-auto bg-white p-4 flex flex-col lg:flex-row gap-8 my-6">
+        <div>
+            <img class="w-full rounded" src="data:image/png;base64,{img_base64}" alt="hero">
+        </div>
+        <div>
+            <h3 class="font-bold text-xl mb-3">
+                CMSAutomateX — Automated RFP Analysis & Component Mapping
+            </h3>
+            <p class="text-gray-600">
+                Automated RFP analysis tool that inspects a website (URL index / sitemap)
+                and produces a structured RFP-ready output focused on page types,
+                exhaustive UX-led component identification, and third-party integration detection.
+            </p>
+        </div>
+    </div>
+    """,
+    unsafe_allow_html=True,
+)
 
 if not st.session_state["messages"]:
     st.markdown(
-        '<div class="bot">Hello! 👋<br>Please enter a website Sitemap URL to get started.</div>',
+        '<div class="inline-block bg-gray-200 text-gray-800 p-3 rounded-lg mb-2 max-w-4/5 website-sitemap>Hello! 👋<br>Please enter a website Sitemap URL to get started.</div>',
         unsafe_allow_html=True
     )
 
 for msg in st.session_state["messages"]:
-    css = "user" if msg["role"] == "user" else "bot"
-    st.markdown(f'<div class="{css}">{msg["content"]}</div>', unsafe_allow_html=True)
-
+    if msg["role"] == "user":
+        st.markdown(f'<div class="ml-auto bg-indigo-600 text-white p-3 rounded-lg mb-2 max-w-4/5">{msg["content"]}</div>', unsafe_allow_html=True)
+    else:
+        st.markdown(f'<div class="bg-gray-200 text-gray-800 p-3 rounded-lg mb-2 max-w-4/5 website-sitemap">{msg["content"]}</div>', unsafe_allow_html=True)
 st.markdown('</div>', unsafe_allow_html=True)
 
 
 
 # Input
-st.markdown('<div class="chat-input">', unsafe_allow_html=True)
+st.markdown('<div class="p-3 border-t bg-white">', unsafe_allow_html=True)
 
 if not st.session_state["sitemap_url"]:
     # Crawl controls
