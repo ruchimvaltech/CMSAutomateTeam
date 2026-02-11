@@ -15,18 +15,44 @@ nest_asyncio.apply()  # Allow nested event loops for Streamlit
 # Ensure Playwright browsers are installed on startup
 import subprocess
 import os
-try:
-    # Check if browsers are already installed
-    from playwright.sync_api import sync_playwright
-    with sync_playwright() as p:
-        pass
-except Exception:
-    # If browsers not found, install them
+import pathlib
+
+def ensure_playwright_browsers():
+    """Install Playwright browsers if not already installed."""
     try:
-        subprocess.run([sys.executable, "-m", "playwright", "install", "chromium"], 
-                      check=True, capture_output=True, timeout=300)
+        # Check if chromium executable exists
+        browsers_path = pathlib.Path.home() / ".cache" / "ms-playwright"
+        if browsers_path.exists():
+            # Check for chromium
+            chromium_paths = list(browsers_path.glob("**/chrome-headless-shell"))
+            if chromium_paths:
+                return  # Browsers already installed
+        
+        # Install browsers
+        print("Installing Playwright browsers (this may take a moment)...")
+        env = os.environ.copy()
+        env["PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD"] = "0"
+        
+        result = subprocess.run(
+            [sys.executable, "-m", "playwright", "install", "chromium"],
+            env=env,
+            capture_output=True,
+            text=True,
+            timeout=600
+        )
+        
+        if result.returncode != 0:
+            print(f"Playwright installation stderr: {result.stderr}")
+        else:
+            print("Playwright browsers installed successfully")
+            
+    except subprocess.TimeoutExpired:
+        print("Playwright installation timed out, will retry on next run")
     except Exception as e:
-        print(f"Warning: Could not install Playwright browsers: {e}")
+        print(f"Error installing Playwright browsers: {e}")
+
+# Install browsers before importing streamlit
+ensure_playwright_browsers()
     
 import streamlit as st
 from crawler import crawl_website
