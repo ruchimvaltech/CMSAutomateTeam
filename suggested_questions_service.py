@@ -2,11 +2,22 @@ import json
 from pathlib import Path
 from openai import OpenAI
 import os
+from dotenv import load_dotenv
 
+load_dotenv()  # Load .env variables
 
-# ---------------- OpenAI Client ----------------
+# Azure OpenAI Configuration
+AZURE_OPENAI_KEY = os.getenv("AZURE_OPENAI_KEY")
+AZURE_OPENAI_ENDPOINT = os.getenv("AZURE_OPENAI_ENDPOINT")
+AZURE_OPENAI_DEPLOYMENT_NAME = os.getenv("AZURE_OPENAI_DEPLOYMENT_NAME")
+
+if not AZURE_OPENAI_KEY or not AZURE_OPENAI_ENDPOINT or not AZURE_OPENAI_DEPLOYMENT_NAME:
+    raise ValueError("Azure OpenAI credentials not found in .env. Required: AZURE_OPENAI_KEY, AZURE_OPENAI_ENDPOINT, AZURE_OPENAI_DEPLOYMENT_NAME")
+
+# Create OpenAI client with Azure endpoint
 client = OpenAI(
-    api_key=os.getenv("OPENAI_API_KEY")
+    base_url=AZURE_OPENAI_ENDPOINT,
+    api_key=AZURE_OPENAI_KEY
 )
 # ---------------- Static Questions Path ----------------
 STATIC_Q_PATH = Path("rfp_questions.json")
@@ -79,7 +90,7 @@ Website Context (partial, for reference only):
 """
 
     response = client.chat.completions.create(
-        model="gpt-4o-mini",
+        model=AZURE_OPENAI_DEPLOYMENT_NAME,
         messages=[
             {
                 "role": "system",
@@ -90,8 +101,7 @@ Website Context (partial, for reference only):
                 )
             },
             {"role": "user", "content": prompt}
-        ],
-        temperature=0.6
+        ]
     )
 
     raw = response.choices[0].message.content.strip()

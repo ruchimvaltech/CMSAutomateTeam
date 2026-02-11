@@ -2,6 +2,8 @@ import asyncio
 import sys
 import pandas as pd
 from io import BytesIO
+from dotenv import load_dotenv
+load_dotenv(override=True)  # This reloads .env file each time
 
 if sys.platform.startswith("win"):
     asyncio.set_event_loop_policy(asyncio.WindowsProactorEventLoopPolicy())

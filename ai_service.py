@@ -5,11 +5,19 @@ import re
 
 load_dotenv()  # loads .env into environment variables
 from openai import OpenAI
-OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 
-if not OPENAI_API_KEY:
-    raise ValueError("OPENAI_API_KEY not found in .env")
-client = OpenAI(api_key=OPENAI_API_KEY)
+# Azure OpenAI Configuration
+AZURE_OPENAI_KEY = os.getenv("AZURE_OPENAI_KEY")
+AZURE_OPENAI_ENDPOINT = os.getenv("AZURE_OPENAI_ENDPOINT")
+AZURE_OPENAI_DEPLOYMENT_NAME = os.getenv("AZURE_OPENAI_DEPLOYMENT_NAME")
+
+if not AZURE_OPENAI_KEY or not AZURE_OPENAI_ENDPOINT or not AZURE_OPENAI_DEPLOYMENT_NAME:
+    raise ValueError("Azure OpenAI credentials not found in .env. Required: AZURE_OPENAI_KEY, AZURE_OPENAI_ENDPOINT, AZURE_OPENAI_DEPLOYMENT_NAME")
+
+client = OpenAI(
+    base_url=AZURE_OPENAI_ENDPOINT,
+    api_key=AZURE_OPENAI_KEY
+)
 
 
 def _strip_code_fences(s: str) -> str:
@@ -142,12 +150,11 @@ INSTRUCTIONS:
 """
 
     response = client.chat.completions.create(
-        model="gpt-4o-mini",  # or gpt-4.1 if available
+        model=AZURE_OPENAI_DEPLOYMENT_NAME,
         messages=[
             {"role": "system", "content": system_prompt},
             {"role": "user", "content": user_prompt}
-        ],
-        temperature=0.2
+        ]
     )
 
     return response.choices[0].message.content
@@ -536,9 +543,8 @@ WEBSITE CONTENT (REFERENCE SOURCE):
     }
 
     response = client.chat.completions.create(
-        model="gpt-4o-mini",
+        model=AZURE_OPENAI_DEPLOYMENT_NAME,
         messages=[{"role": "user", "content": prompt}],
-        temperature=0.1,
         max_tokens=16000,
         tools=[rfp_function],
         tool_choice={"type": "function", "function": {"name": "submit_rfp"}}
@@ -699,9 +705,8 @@ WEBSITE CONTENT:
 """
 
     response = client.chat.completions.create(
-        model="gpt-4o-mini",
-        messages=[{"role": "user", "content": prompt}],
-        temperature=0.3
+        model=AZURE_OPENAI_DEPLOYMENT_NAME,
+        messages=[{"role": "user", "content": prompt}]
     )
 
     raw = response.choices[0].message.content.strip()
