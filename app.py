@@ -228,8 +228,13 @@ if st.session_state["sitemap_url"]:
     if st.button("📊 Generate RFP Analysis"):
         crawled_count = len(st.session_state.get("crawled_urls", []))
         
+        # Validation: ensure we have crawled URLs
+        if not st.session_state.get("context"):
+            st.error("❌ No context available. Please crawl a sitemap first.")
+        elif crawled_count == 0:
+            st.error("❌ No URLs found. Please ensure the sitemap crawl was successful and returned pages.")
         # Show estimated time based on URL count
-        if crawled_count <= 100:
+        elif crawled_count <= 100:
             time_est = "~15-30 seconds"
         elif crawled_count <= 500:
             time_est = f"~{int(crawled_count/100) * 20} seconds - {int(crawled_count/100) * 40} seconds"

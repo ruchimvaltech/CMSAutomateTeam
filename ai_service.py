@@ -545,7 +545,7 @@ WEBSITE CONTENT (REFERENCE SOURCE):
     response = client.chat.completions.create(
         model=AZURE_OPENAI_DEPLOYMENT_NAME,
         messages=[{"role": "user", "content": prompt}],
-        max_tokens=16000,
+        max_completion_tokens=16000,
         tools=[rfp_function],
         tool_choice={"type": "function", "function": {"name": "submit_rfp"}}
     )
