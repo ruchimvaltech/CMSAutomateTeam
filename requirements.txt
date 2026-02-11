@@ -7,4 +7,5 @@ lxml
 openai
 openpyxl
 pandas
-aiohttpnest-asyncio
+aiohttp
+nest-asyncio
