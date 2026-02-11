@@ -258,7 +258,7 @@ async def crawl_website(url: str, max_pages: int = 300, concurrency: int = 8, re
     visited = set()
 
     async with async_playwright() as p:
-        browser = await p.chromium.launch(headless=True)
+        browser = await p.chromium.launch(headless=True,args=["--no-sandbox", "--disable-dev-shm-usage"])
         page = await browser.new_page()
 
         await page.goto(url, timeout=60000)
