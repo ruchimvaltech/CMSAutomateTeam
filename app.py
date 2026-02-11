@@ -11,6 +11,22 @@ if sys.platform.startswith("win"):
 
 import nest_asyncio
 nest_asyncio.apply()  # Allow nested event loops for Streamlit
+
+# Ensure Playwright browsers are installed on startup
+import subprocess
+import os
+try:
+    # Check if browsers are already installed
+    from playwright.sync_api import sync_playwright
+    with sync_playwright() as p:
+        pass
+except Exception:
+    # If browsers not found, install them
+    try:
+        subprocess.run([sys.executable, "-m", "playwright", "install", "chromium"], 
+                      check=True, capture_output=True, timeout=300)
+    except Exception as e:
+        print(f"Warning: Could not install Playwright browsers: {e}")
     
 import streamlit as st
 from crawler import crawl_website
